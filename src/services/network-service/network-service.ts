@@ -2,11 +2,11 @@ import type postgres from 'postgres';
 import { NetworkState } from '../../blockchain/types.js';
 import { getNetworkStateQuery } from '../../db/sql/events-actions/queries.js';
 
-import { INetworkService } from './network-service.interface.js';
 import {
   TracingState,
   extractTraceStateFromOptions,
 } from '../../tracing/tracer.js';
+import { INetworkService } from './network-service.interface.js';
 
 export { NetworkService };
 
@@ -32,17 +32,19 @@ class NetworkService implements INetworkService {
     sqlSpan.end();
 
     const processingSpan = tracingState.startSpan('networkState.processing');
+    const canonicalMaxBlockHeight = Number(
+      rows.filter((row) => row.chain_status === 'canonical')[0].height
+    );
     const maxBlockHeightInfo = {
-      canonicalMaxBlockHeight: Number(
-        rows.filter((row) => row.chain_status === 'canonical')[0].height
-      ),
+      canonicalMaxBlockHeight,
       pendingMaxBlockHeight: Number(
-        rows.filter((row) => row.chain_status === 'pending')[0].height
+        rows.filter((row) => row.chain_status === 'pending')[0]?.height ??
+          canonicalMaxBlockHeight
       ),
     };
     const networkState = {
-      maxBlockHeight: maxBlockHeightInfo
-    }
+      maxBlockHeight: maxBlockHeightInfo,
+    };
     processingSpan.end();
     return networkState;
   }
